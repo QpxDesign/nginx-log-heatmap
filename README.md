@@ -1,3 +1,5 @@
+![example heatmap](https://github.com/qpxdesign/nginx-log-heatmap/blob/main/images/example.png?raw=true)
+
 ### NGINX Log Heatmap Generator
 
 This is a python script that takes in NGINX logs and geolocates IPs, outputting them to JSON and counting unique ip occurrences. It can also output as GeoJSON, to a pre-configured HTML/Mapbox-based Heatmap of User Traffic.
