@@ -10,59 +10,50 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-if __name__ == '__main__': 
+if __name__ == '__main__':
     with open(f'./{sys.argv[1]}', 'r') as f:
         contents = f.read()
         lines = contents.split("\n")
-        results = []
+        results = {}
         for line in lines:
-            regex = r''+str(sys.argv[2])
-            if len(sys.argv) <= 2 or re.search(regex,string=line) is not None:
+            if len(sys.argv) <= 2 or re.search(r''+str(sys.argv[2]),string=line) is not None:
                 if len(line.split(" - - ")) != 0:
                     ip = line.split(" - - ")[0]
-                    if len(ip) > 5:   # make sure ip is valid    
-                        results.append({
-                            "ip_address": ip, 
-                            "count": 1,
-                            "date": (line.split(' - - ')[1].split(" ")[0]).replace("[","")
-                        })
-        print(f"TOTAL REQUESTS SENT: {len(results)}")
-        ip_occurrences = []
-        for ip in tqdm(results):
-            a = list(filter(lambda x: x != None and x["ip_address"] == ip["ip_address"], results))
-            b = list(filter(lambda x: x != None and x["ip_address"] == ip["ip_address"], ip_occurrences))
-            if len(a) == 0:
-                ip_occurrences.append(ip)
-            elif len(b) == 0:
-                sum_count = 0
-                for ip in a:
-                    sum_count += ip['count']
-                ip_occurrences.append({
-                    "ip_address":ip['ip_address'],
-                    "count": sum_count,
-                    "last_date": ip['date']
-                })
-        
-        ip_occurrences.sort(key=lambda x:x != None and x.get("count"),reverse=True)
-        print(f"TOTAL UNIQUE IPS: {len(ip_occurrences)}")
-        print(f"ESTIMATED {math.floor(len(ip_occurrences)/45)}min TOTAL RUNTIME")
+                    date = ""
+                    if len(line.split(' - - ')) >= 2 and len(line.split(' - - ')[1].split(" ")) != 0:
+                        date = (line.split(' - - ')[1].split(" ")[0]).replace("[","")
+                    
+                    if len(ip) > 5:   # make sure ip is valid
+                        if ip in results:
+                            results[ip]['count'] +=1
+                        else:
+                            results[ip] = {
+                                "ip_address":ip,
+                                'count':1,
+                                'date':date
+                            }
+
+        print(f"TOTAL UNIQUE IPS: {len(results)}")
+        print(f"ESTIMATED {math.floor(len(results)/45)}min TOTAL RUNTIME")
         index = 0
         start_time = time.time()
-
-        for ip_entry in tqdm(ip_occurrences):
+        for ip_entry in tqdm(results):
             index += 1
             request_worked = False
             while not request_worked:
                 try:
                     time.sleep(1.5)
-                    res = requests.get(f'http://ip-api.com/json/{ip_entry["ip_address"]}?fields=66842623&lang=en')
+                    print(results[ip_entry]["ip_address"])
+                    res = requests.get(f'http://ip-api.com/json/{results[ip_entry]["ip_address"]}?fields=66842623&lang=en')
+                    print(res)
                     response = json.loads(res.text)
-                    ip_entry.update(response)
+                    results[ip_entry].update(response)
                     request_worked = True
                     runtime_min = math.floor((time.time()-start_time)/60)
-                except:
-                    print("FAILED TO CONNECT TO IP GEOLOCATION API - RETRYING")
-
+                except Exception as error:
+                    print("FAILED TO CONNECT TO IP GEOLOCATION API - RETRYING (ERROR :",error)
+        with open('./full-output.json','w') as f2:
+            f2.write(json.dumps(results))
         ip_occurrences_geojson = {
         "type": "FeatureCollection",
         "crs": {
@@ -74,19 +65,19 @@ if __name__ == '__main__':
          "features": []
         }
         final_f = []
-        print(len(ip_occurrences))
-        for d in ip_occurrences:
+        print(len(results))
+        for d in results:
             final_f = []
             obj = {
                 "type":"Feature",
                 "properties": {
-                    "id":d["ip_address"],
-                    "mag":d["count"],
+                    "id":d,
+                    "mag":results[d]["count"],
                 },
                 'geometry': {
                     'type':"Point",
                     'coordinates': [
-                        d['lon'],d["lat"]
+                        results[d]['lon'],results[d]["lat"]
                     ]
                 }
             }
@@ -272,4 +263,3 @@ if __name__ == '__main__':
         MAP_HTML = MAP_HTML.replace("<PLACE_HOLDER_2>",os.getenv("MAPBOX_ACCESS_TOKEN"))
         with open(f"./map.html", 'w') as f2:
             f2.write(MAP_HTML)
-            
