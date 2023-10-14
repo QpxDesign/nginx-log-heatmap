@@ -67,7 +67,7 @@ if __name__ == '__main__':
         final_f = []
         print(len(results))
         for d in results:
-            final_f = []
+          if 'lon' in results[d] and 'lat' in results[d]:
             obj = {
                 "type":"Feature",
                 "properties": {
